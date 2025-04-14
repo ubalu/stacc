@@ -1,0 +1,17 @@
+
+"Hello, Seamen\n" . -- Hello, world is sooo boring
+34 35 + dup 351 + . . -- comments are here
+
+
+	{ dup 2 < { drop 1 } { dup dec 'fib call * } if } 'fib : -- function definition
+-- 	^                			   						^
+--  |                									+-- `'string` is an identifier
+--  +-- this is an executable block (basically an anonimous function)
+-- 
+-- the verb  `:` assigns the block on the top of the stack to the name `'fib`, storing it to the function table
+
+4 'fib call . -- expecting 24
+
+
+
+
