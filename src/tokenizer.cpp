@@ -1,5 +1,3 @@
-#include "tokenizer.h"
-
 #include <optional>
 #include <vector>
 #include <iostream>
@@ -7,8 +5,8 @@
 #include <cctype>
 #include <cstdint>
 
-#define ERROR "[\x1b[31mERROR\x1b[m] "
-
+#include "tokenizer.h"
+#include "defines.h"
 
 std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 	std::vector<Token*> tokens;
