@@ -1,17 +1,30 @@
 
-"Hello, Seamen\n" . -- Hello, world is sooo boring
-34 35 + dup 351 + . . -- comments are here
+! BASIC WORKINGS
+"Hello, Seamen\n" .   ! Hello world is sooo boring
+34 35 + dup 351 + . . ! comments are here (yes, `!` is a word)
 
 
-	{ dup 2 < { drop 1 } { dup dec 'fib call * } if } 'fib : -- function definition
--- 	^                			   						^
---  |                									+-- `'string` is an identifier
---  +-- this is an executable block (basically an anonimous function)
--- 
--- the verb  `:` assigns the block on the top of the stack to the name `'fib`, storing it to the function table
+! CONTROL FLOW
+	[ dup 2 < [ drop 1 ] [ dup dec 'fac call * ] if ] 'fac : ! function definition
+!	^                			   						^
+!	|                									+-- `'string` is an identifier
+!	+-- this is an executable block (basically an anonimous function)
+!
+! the verb  `:` assigns the block on the top of the stack to the name `'fib`,
+! storing it to the function table
 
-4 'fib call . -- expecting 24
+4 'fac call . ! expecting 24
+! because the stack-based style works well (in my opinion) with fun
 
+! LIST OPERATIONS
+	[ iota [ * ] reduce1 ] 'loopfac :
+!	^   \___________/
+!	|         |
+!	|         +----- this part means multiply everything together (apply *
+!	|                between each item and take the result)
+!	+--- this takes the top integer from the stack, and generates a list
+!		 from 1 up to the given number.
+4 'loopfac call . ! still expecting 24
 
 
 
