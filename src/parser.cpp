@@ -53,6 +53,8 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 					std::optional<std::vector<Object*>> blockdata = parse(++it, end, true, false);
 					if (!blockdata) return std::nullopt;
 					result.push_back( new OTBlock(blockdata.value()) );
+					for (Object* o: blockdata.value())
+						delete o;
 				}
 
 				// found list initializer word, recursively parse a list.
@@ -60,6 +62,8 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 					std::optional<std::vector<Object*>> listdata = parse(++it, end, false, true);
 					if (!listdata) return std::nullopt;
 					result.push_back( new OTList(listdata.value()) );
+					for (Object* o: listdata.value())
+						delete o;
 				}
 
 				else 
