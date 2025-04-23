@@ -19,6 +19,7 @@ std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 		if (stream.peek() == EOF) break;
 
 		// handle strings
+		// TODO: handle escape strings
 		if (stream.peek() == '"') {
 			
 			// discard introducing `"`
@@ -30,7 +31,7 @@ std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 
 				// this is an error
 				if (stream.peek() == EOF) {
-					std::cout << ERROR "Unterminated string literal";
+					std::cout << ERROR << "Unterminated string literal";
 					return std::nullopt;
 				}
 
@@ -96,7 +97,7 @@ void put_value(std::ostream& stream, Token const& t) {
 			 stream << *(std::string*)t.get_value();
 			return;
 		default: {
-			std::cout << ERROR "Unreachable";
+			std::cout << ERROR << "Unreachable";
 			return; 
 		}
 	}
@@ -113,7 +114,7 @@ std::ostream& operator<<(std::ostream& stream, Token const& t) {
 		case Token::Word:
 			return stream << "WORD(" << *(std::string*)t.get_value() << ")";
 		default: {
-			std::cout << ERROR "Unreachable";
+			std::cout << ERROR << "Unreachable";
 			return stream;
 		}
 	}

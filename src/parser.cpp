@@ -34,7 +34,7 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 
 				// we are parsing a block, but we hit an incorrect terminator:
 				else if (block && (**it == TTWord("}"))) {
-					std::cout << ERROR "Interleaved block and list: found `}`, expected `]`\n";
+					std::cout << ERROR << "Interleaved block and list: found `}`, expected `]`\n";
 					return std::nullopt;
 				}
 
@@ -44,7 +44,7 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 				
 				// we are parsing a list and we hit an incorrect terminator:
 				else if (list && (**it == TTWord("]"))) {
-					std::cout << ERROR "Interleaved list and block: found `]`, expected `}`\n";
+					std::cout << ERROR << "Interleaved list and block: found `]`, expected `}`\n";
 					return std::nullopt;
 				}
 				
@@ -72,10 +72,10 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 		}
 	}
 	if (block) {
-		std::cout << ERROR "Unterminated block\n";
+		std::cout << ERROR << "Unterminated block\n";
 		return std::nullopt;
 	} else if (list) {
-		std::cout << ERROR "Unterminated list\n";
+		std::cout << ERROR << "Unterminated list\n";
 		return std::nullopt;
 	}
 	return std::optional<std::vector<Object*>>(result);
@@ -85,23 +85,23 @@ std::ostream& operator<<(std::ostream& stream, Object const& o) {
 	
 	switch (o.type()) {
 		case Object::Int:
-			return stream << "Int(" << *(int64_t*)o.get_value() << ")";
+			return stream << *(int64_t*)o.get_value();
 		case Object::Float:
-			return stream << "Float(" << *(double*)o.get_value() << ")";
+			return stream << *(double*)o.get_value();
 		case Object::Word: 
-			return stream << "Word(" << *(std::string*)o.get_value() << ")";
+			return stream << *(std::string*)o.get_value();
 		case Object::String:
-			return stream << "String(\"" << *(std::string*)o.get_value() << "\")";
+			return stream << *(std::string*)o.get_value();
 		case Object::Block: {
 			stream << "Block([";
 			for (const Object* obj: *(std::vector<Object*>*)o.get_value())
-				stream << *obj << ", ";
+				stream << *obj << ",\n";
 			return stream << "])";
 		}
 		case Object::List: {
 			stream << "List({";
 			for (const Object* obj: *(std::vector<Object*>*)o.get_value())
-				stream << *obj << ", ";
+				stream << *obj << ",\n";
 			return stream << "})";
 		}
  
