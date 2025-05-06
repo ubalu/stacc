@@ -1,3 +1,12 @@
+/**
+ * @file 
+ *
+ *
+ * @todo \c index és \c slice ? 
+ * @todo \c sort helyett \c grade ?
+ * @todo ezt bővíteni
+ * @todo \c iota helyett \c [a..b], \c [0..b], \c [1..b] ?
+ */
 
 #include <vector>
 #include <unordered_map>
@@ -6,220 +15,396 @@
 #include "interpreter.h"
 #include "parser.h"
 
-/**
- *	IMPLEMENTED BUILTINS (or the Stacc runtime):
- *  	Standard I/O:
- * 			[x] .			- basic print
- * 			[x] S.			- debug print
- * 			[ ] cr			- newline
- *
- *   	Arithmetic:
- *   		[ ] inc			- increment
- *   		[ ]	dec			- decrement
- *   		[x] +			- addition, string catenation
- *   		[ ] -			- subtraction
- *   		[ ] *			- multiplication
- *   		[ ] /			- division
- *   		[ ] %			- remainder (modulo)
- *   		[ ] pow			- power
- *   		[ ] sqrt		- square root
- *
- *   		[ ] deg2rad	 	- angle conversions
- *   		[ ] rad2deg		- angle conversions 
- *   		[ ] sin			- sine (radians)
- *   		[ ] cos			- cosine (radians)
- *   		[ ] tan 		- tangent (radians)
- *   		[ ] arcsin		- arcsine (radians)
- *   		[ ] arccos		- arccosine (radians)
- *   		[ ] arctan 		- arctangent (radians)
- *
- *   		[ ] and			- logical and
- *   		[ ] or			- logical or
- *   		[ ] not			- logical not
- *   		[ ] &			- bitwise and
- *   		[ ] |			- bitwise or
- *   		[ ] ^			- bitwise xor
- *   		[ ] ~			- bitwise not
- *
- *   	Comparison:
- *   		[ ] = 			- equal
- *   		[ ] !=			- not equal
- *   		[ ]	< 			- strictly less-than
- *   		[ ] <=			- less-than-or-equal
- *   		[ ] >			- strictly greater-than
- *   		[ ] >=			- greater-than-or-equal
- *
- *   	List operations:
- *   		[ ]	len			- length of list
- *   		[ ] append		- append item
- *   		[ ] prepend		- insert item at front
- *   		[ ] insert		- insert item after position
- *   		[ ] first		- get first item
- *   		[ ] last		- get last item
- *   		[ ] take		- first n items (if n is negative, last n items)
- * 
- *   		[ ] iota		- generate indices (numbers from 0 to n)
- *   		[ ] each		- apply function to each element (see 'curry')
- *			[ ] map			- transform each item in list
- *			[ ] filter		- remove items based on a predicate
- *			[ ] reduce		- apply function between elements (see Wiki: https://en.wikipedia.org/wiki/Fold_(higher-order_function))
- *			[ ] reduce1		- see 'reduce', use first element as starting value
- *			[ ] scan		- apply function between elements and save partial results (see https://en.wikipedia.org/wiki/Prefix_sum#Scan_higher_order_function)
- *			[ ] scan1		- see 'scan', use first element as starting value
- *		
- *		String operations: list operatiosńs work, and:
- *			TODO: expand this section
- *			[ ] upper		- change to uppercase
- *			[ ]	lower		- change to lowercase
- *			[ ] find		- find location of substring
- *			[ ] count		- count disjoint occurences of substring
- *
- * 		Stack operations:
- * 			[x] <literal>	- push <literal> on the stack
- * 			[x] dup			- duplicate top value
- * 			[ ]	2dup		- duplicate top pair
- * 			[ ]	swap		- switch top two elements
- * 			[ ]	2swap		- switch top two pairs
- * 			[ ] over		- duplicate second to top element to the top of the stack
- * 			[ ] 2over		- duplicate second to top pair to the top of the stack
- * 			[ ]	drop		- discard the top element
- * 			[ ] rot			- rotate the third-from-top element to the top of the stack
- *
- * 		Control flow:
- * 			[x] '[' and ']'	- block creation (this is a parse word)
- *			[ ] <word>		- call the builtin or defined word 'word'
- *			[ ] '<word>		- assign block to the name 'word'
- *			[ ]	if 			- conditionally execute blocks
- *			[ ]	curry		- partially apply value to block
- *
- * */
-using namespace itp;
-static const std::unordered_map<std::string, Word> builtin_words = {
+/// Objektum értéke.
+/** 
+ * Ez a függvény gyakorlatilag egy makró, de így típusbiztos.
+ * @warning A függvény nem ellenőrzi, hogy megfelelő típust kér-e!
+ * @tparam T Az objektum \c value mezejének típusa.
+ * @param o Az objektum, aminek az értékét keressük.
+ * @returns Az objektum értéke, megfelelő típusra konvertálva.
+ */
+template<typename T> static inline T& value(Object* o) {
+	return *(T*)o->get_value();
+}
 
-	// TODO: implement all builtins
-	
-	/// drop-printing
-	{".", [] (Stack& s) -> Error {
-		if (s.size() < 1) 
-			return STACK_UNDERFLOW;
-		Object* o = s.back(); s.pop_back();
+/// Verem legfelső elemét levenni (\c pop).
+/**
+ * Ez a függvény is lehetne makró, csak így típusbiztos. Igazából csak azt nem értem, 
+ * hogy a beépített std::vector<T>::pop_back() miért nem ezt csinálja...
+ * @warning A függvény nem ellenőrzi, hogy _van-e_ egyáltalán érték a veremben!
+ * @param stack A verem, amiről leveszünk.
+ * @returns Az adott verem utolsó eleme.
+ */
+static inline Object* pop(Stack& stack) {
+	Object* p = stack.back();
+	stack.pop_back();
+	return p;
+}
+
+/** @def WORD_HEADER
+ *  @brief Beépített szavak függvényfejléce.
+ */
+#define WORD_HEADER [] (Environment& env) -> Error
+
+/** @def UNUSED(arg)
+ *  @brief Nem használt argumentum.
+ */
+#define UNUSED(arg) (void)((arg));
+
+static Error execute_block(Environment&, Block const&);
+
+/// @var static const std::unordered_map<std::string, Word> builtin_words
+/// @todo Implement all built-ins.
+static const std::unordered_map<std::string, Word> builtin_words = {
+// STANDARD I/O	
+	// drop-printing
+	{".", WORD_HEADER {
+		if (env.stack.size() < 1) return STACK_UNDERFLOW;
+		Object* o = pop(env.stack);
 		std::cout << *o;
 		delete o;
 		return SUCCESS;
 	}},
 
-	/// debug printing
-	{"S.", [] (Stack& s) -> Error {
-		std::cout << "<" << s.size() << ">\n";
-		for (auto o: s)
-			std::cout << o << "\n";
+	// debug printing
+	{"S.", WORD_HEADER {
+		std::cout << "\n<" << env.stack.size() << ">\n";
+		for (auto o: env.stack)
+			std::cout << *o << "\n";
 		return SUCCESS;
 	}},
 
-	/// +: addition and string concatenation
-	{"+", [] (Stack& s) -> Error {
-		if (s.size() < 2)
-			return STACK_UNDERFLOW;
+	// insert newline into stdout
+	{"cr", WORD_HEADER {
+		UNUSED(env)
+		std::cout << "\n";
+		return SUCCESS;
+	}},
 
-		Object* top = s.back(); s.pop_back();
-		switch (top->type()) {
-
-			// int + ...
-			case Object::Int: {
-				int64_t val = *(int64_t*)top->get_value();
-				Object* other = s.back(); s.pop_back();
-				
-				// int + int -> int
-				if (other->type() == Object::Int) 
-					s.push_back(new OTInt(
-						val + *(int64_t*)other->get_value()
-					));
-				
-				// int + float -> float
-				else if (other->type() == Object::Float)
-					s.push_back(new OTFloat(
-						(double)val + *(double*)other->get_value()
-					));
-
-				// fail gracefully
-				else { delete top; delete other; return TYPE_MISMATCH; }
-
-				// prevent leaks
-				delete top; delete other;
-			} return SUCCESS;
-			
-			// float + ...
-		 	case Object::Float: {
-				double val = *(double*)top->get_value();
-				Object* other = s.back(); s.pop_back();
-				
-				// float + int -> float
-				if (other->type() == Object::Int)
-					s.push_back(new OTFloat(
-						val + (double)*(int64_t*)other->get_value()
-					));
-
-				// float + float -> float
-				else if (other->type() == Object::Float)
-					s.push_back(new OTFloat(
-						val + *(double*)other->get_value()
-					));
-				
-				// fail
-				else { delete top; delete other; return TYPE_MISMATCH; }
-
-				delete top; delete other;
-			} return SUCCESS;
-
-			// string + string
-			case Object::String: {
-				std::string const& val = *(std::string*)top->get_value();
-				Object* other = s.back(); s.pop_back();
-				if (other->type() == Object::String) {
-					std::string const& val2 = *(std::string*)other->get_value();
-					s.push_back(new OTString(
-						val + val2
-					));
-					delete top; delete other;
-				} else { delete top; delete other; return TYPE_MISMATCH; }
-			} return SUCCESS;
+// ARITHMETIC
+	// add 1 to a number
+	{"inc", WORD_HEADER {
+		if (env.stack.size() < 1) return STACK_UNDERFLOW;
+		Object* o = pop(env.stack);
+		switch (o->type()) {
+			case Object::Int:
+				env.stack.push_back(new OTInt( value<int64_t>(o) + 1 ));
+				delete o;
+				return SUCCESS;
+			case Object::Float:
+				env.stack.push_back(new OTFloat( value<double>(o) + 1.0 ));
+				delete o;
+				return SUCCESS;
 			default:
+				delete o;
 				return TYPE_MISMATCH;
 		}
 	}},
 
-	// dup: duplicating the item on top of the stack
-	{"dup", [] (Stack& s) -> Error {
-		if (s.size() < 1)
-			return STACK_UNDERFLOW;
-		Object* o = s.back();
-		s.push_back(o->clone());
+	// subtract 1 from a number
+	{"dec", WORD_HEADER {
+		if (env.stack.size() < 1) return STACK_UNDERFLOW;
+		Object* o = pop(env.stack);
+		switch (o->type()) {
+			case Object::Int:
+				env.stack.push_back(new OTInt( value<int64_t>(o) - 1 ));
+				delete o;
+				return SUCCESS;
+			case Object::Float:
+				env.stack.push_back(new OTFloat( value<double>(o) - 1.0));
+				delete o;
+				return SUCCESS;
+			default:
+				delete o;
+				return TYPE_MISMATCH;
+		}
+	}},
+	
+	// +: addition and string concatenation
+	{"+", WORD_HEADER {
+		if (env.stack.size() < 2) return STACK_UNDERFLOW;
+		Object* top		= pop(env.stack); Object::Type tt = top->type();
+		Object* bottom	= pop(env.stack); Object::Type bt = bottom->type();
+		switch (tt << 8 | bt) {
+			// Int, Int
+			case 0x00: {
+				int64_t tv = value<int64_t>(top);
+				int64_t bv = value<int64_t>(bottom);
+				env.stack.push_back(new OTInt( bv + tv ));
+			} break;
+			// Int, Float
+			case 0x01: { 
+				double tv = (double)value<int64_t>(top);
+				double bv = value<double>(bottom);
+				env.stack.push_back(new OTFloat( bv + tv ));
+			} break;
+			// Float, Int
+			case 0x10: {
+				double tv = value<double>(top);
+				double bv = (double)value<int64_t>(bottom);
+				env.stack.push_back(new OTFloat( bv + tv ));
+			} break;
+			// Float, Float
+			case 0x11: {
+				double tv = value<double>(top);
+				double bv = value<double>(bottom);
+				env.stack.push_back(new OTFloat( bv + tv ));
+			} break;
+			// String, String
+			case 0x33: {
+				std::string const& tv = value<std::string>(top);
+				std::string const& bv = value<std::string>(bottom);
+				env.stack.push_back(new OTString( bv + tv ));
+			} break; 
+			default:
+				delete top; delete bottom;
+				return TYPE_MISMATCH;
+		}
+		delete top; delete bottom;
 		return SUCCESS;
+	}},
+	
+	// *: multiplication
+	{"*", WORD_HEADER {
+		if (env.stack.size() < 2) return STACK_UNDERFLOW;
+		Object* top		= pop(env.stack); Object::Type tt = top->type();
+		Object* bottom	= pop(env.stack); Object::Type bt = bottom->type();
+		switch (tt << 8 | bt) {
+			// Int, Int
+			case 0x00: {
+				int64_t tv = value<int64_t>(top);
+				int64_t bv = value<int64_t>(bottom);
+				env.stack.push_back(new OTInt( bv * tv ));
+			} break;
+			// Int, Float
+			case 0x01: { 
+				double tv = (double)value<int64_t>(top);
+				double bv = value<double>(bottom);
+				env.stack.push_back(new OTFloat( bv * tv ));
+			} break;
+			// Float, Int
+			case 0x10: {
+				double tv = value<double>(top);
+				double bv = (double)value<int64_t>(bottom);
+				env.stack.push_back(new OTFloat( bv * tv ));
+			} break;
+			// Float, Float
+			case 0x11: {
+				double tv = value<double>(top);
+				double bv = value<double>(bottom);
+				env.stack.push_back(new OTFloat( bv * tv ));
+			} break;
+			default:
+				delete top; delete bottom;
+				return TYPE_MISMATCH;
+		}
+		delete top; delete bottom;
+		return SUCCESS;
+	}},
+
+// COMPARISONS
+	// <: strictly less-than
+	// TODO: consider supporting strings
+	{"<", WORD_HEADER {
+		if (env.stack.size() < 2) return STACK_UNDERFLOW;
+		Object* top		= pop(env.stack); Object::Type tt = top->type();
+		Object* bottom	= pop(env.stack); Object::Type bt = bottom->type();
+		switch (tt << 8 | bt) {
+			// Int, Int
+			case 0x00: {
+				int64_t tv = value<int64_t>(top);
+				int64_t bv = value<int64_t>(bottom);
+				env.stack.push_back(new OTInt( (int64_t)(bv < tv) ));
+			} break;
+			// Int, Float
+			case 0x01: { 
+				double tv = (double)value<int64_t>(top);
+				double bv = value<double>(bottom);
+				env.stack.push_back(new OTInt( (int64_t)(bv < tv) ));
+			} break;
+			// Float, Int
+			case 0x10: {
+				double tv = value<double>(top);
+				double bv = (double)value<int64_t>(bottom);
+				env.stack.push_back(new OTInt( (int64_t)(bv < tv) ));
+			} break;
+			// Float, Float
+			case 0x11: {
+				double tv = value<double>(top);
+				double bv = value<double>(bottom);
+				env.stack.push_back(new OTInt( (int64_t)(bv < tv) ));
+			} break;
+			default:
+				return TYPE_MISMATCH;
+		}
+		delete top; delete bottom;
+		return SUCCESS;
+	}},
+
+// LIST OPERATIONS
+	// iota: index generator, create a list from 0 to n-1
+	// negative value is an error.
+	// TODO: negative input as reverse list
+	{"iota", WORD_HEADER {
+		if (env.stack.size() < 1) return STACK_UNDERFLOW;
+		Object* top = pop(env.stack);
+		if (top->type() == Object::Int) {
+			int64_t end = value<int64_t>(top);
+			if (end < 0) return INCORRECT_VALUE;
+			env.stack.push_back(new OTList());
+			std::vector<Object*>& list_val = value<std::vector<Object*>>(env.stack.back());
+			for (int64_t i = 0; i < end; i++)
+				list_val.push_back(new OTInt(i));
+			delete top;
+			return SUCCESS;
+		}
+		delete top;
+		return TYPE_MISMATCH;
+	}},
+
+	// map: transform list by applying function
+	/// @bug Memóriahibás (valószínűleg ez a függvény)
+	{"map", WORD_HEADER {
+		Object* fn = pop(env.stack);
+		Object* list = env.stack.back(); // simpler to modify in-place
+		if (fn->type() == Object::Block && list->type() == Object::List) {
+			std::vector<Object*> const& fn_body = value<std::vector<Object*>>(fn);
+			std::vector<Object*>& items = value<std::vector<Object*>>(list);
+			Stack s; std::unordered_map<std::string, Block> w;
+			Environment tmp_env{s, w};
+			for (size_t idx = 0; idx < items.size(); idx++) {
+				for (auto i: tmp_env.stack)
+					delete i;
+				auto item = items.at(idx);
+				tmp_env.stack.push_back(item);
+				Error e = execute_block(tmp_env, fn_body);
+				if (e != SUCCESS) {
+					delete fn; delete list;
+					for (auto i: tmp_env.stack)
+						delete i;
+					return e;
+				}
+				delete item;
+				item = tmp_env.stack.back()->clone();
+
+			}
+		}
+		delete fn;
+		return TYPE_MISMATCH;
+	}},
+
+	// reduce1: apply function between each element, using the first element as initial value
+	{"reduce1", WORD_HEADER {
+		if (env.stack.size() < 2) return STACK_UNDERFLOW;
+		Object* fn = pop(env.stack);
+		Object* list = pop(env.stack);
+		if (fn->type() == Object::Block && list->type() == Object::List) {
+			std::vector<Object*> const& fn_body = value<std::vector<Object*>>(fn);
+			std::vector<Object*> const& val = value<std::vector<Object*>>(list);
+			
+			if (val.size() == 0) {
+				delete fn; delete list;
+				return SUCCESS;
+			} else if (val.size() == 1) {
+				env.stack.push_back(val.at(0)->clone());
+				delete fn; delete list;
+			}
+
+			env.stack.push_back(val.at(0)->clone());
+			for (auto it = val.cbegin() + 1; it != val.cend(); ++it) {
+				env.stack.push_back((*it)->clone());
+				Error e = execute_block(env, fn_body);
+				if (e != SUCCESS) {
+					delete fn; delete list;
+					return e;
+				}
+			}
+
+			delete fn; delete list;
+			return SUCCESS;
+		}
+		delete fn; delete list;
+		return TYPE_MISMATCH;
+
+	}},
+// STRING OPERATIONS
+
+// STACK OPERATIONS
+	// dup: duplicating the item on top of the stack
+	{"dup", WORD_HEADER {
+		if (env.stack.size() < 1) return STACK_UNDERFLOW;
+		Object* o = env.stack.back();
+		env.stack.push_back(o->clone());
+		return SUCCESS;
+	}},
+
+	// drop: discard top item of stack
+	{"drop", WORD_HEADER {
+		if (env.stack.size() < 1) return STACK_UNDERFLOW;
+		Object* o = pop(env.stack);
+		delete o; 
+		return SUCCESS;
+	}},
+
+// CONTROL FLOW
+	// if: conditionally select next block
+	{"if", WORD_HEADER {
+		if (env.stack.size() < 3) return STACK_UNDERFLOW;
+		Object* if_false	= pop(env.stack); 
+		Object* if_true		= pop(env.stack); 
+		Object* predicate	= pop(env.stack); 
+		if (predicate->type() == Object::Int
+			&& if_true->type() == Object::Block
+			&& if_false->type() == Object::Block) {
+			Error e = execute_block(env, value<std::vector<Object*>>(value<int64_t>(predicate) ? if_true : if_false));
+			delete predicate; delete if_true; delete if_false;
+			return e;
+		} else {
+			delete predicate; delete if_true; delete if_false;
+			return TYPE_MISMATCH;
+		}
 	}},
 };
 
-static std::unordered_map<std::string, Block> defined_words;
-
-static Error (*execute_block)(Stack&, Block const&)  = [] (Stack& s, Block const& block) -> Error {
+/// Egy blokk futtatása.
+/**
+ *	Lefuttat egy blokkot, azaz sorrendben mindegyik elemre végrehajtja a 
+ *	megfelelő utasítást.
+ *	@param env A futtatási környezet.
+ *	@param block A lefuttatandó blokk.
+ *	@returns A futtatásból származó hiba.
+ */
+static Error execute_block(Environment& env, Block const& block) {
 	Error e;
 	for (Object* o: block) {
 		switch (o->type()) {
 			case Object::Block: case Object::Int: case Object::Float: case Object::String: case Object::List:
-				s.push_back(o->clone());
+				env.stack.push_back(o->clone());
 				break;
 			case Object::Word:
-				std::string const& val = *(std::string*)o->get_value();
-				// TODO: implement word definitions
+				std::string val = std::string(*(std::string*)o->get_value());
 				if (val.front() == '\'') {
-					std::cout << "[\x1b[91mERROR\x1b[m] Assigning names is not yet implemented\n";
-					return NOT_IMPLEMENTED;
+					if (env.stack.size() < 1) return STACK_UNDERFLOW;
+					Object* o2 = pop(env.stack);
+					if (o2->type() != Object::Block)
+						return TYPE_MISMATCH;
+
+					std::string new_word = val.substr(1);
+					env.defined_words[new_word] = std::vector<Object*>();
+					for (Object* obj: *(std::vector<Object*>*)o2->get_value()) {
+						env.defined_words[new_word].push_back(obj->clone());
+						delete obj;
+					}
+				} else {
+					e = (builtin_words.find(val) != builtin_words.end()) ? builtin_words.at(val)(env)
+						: (env.defined_words.find(val) != env.defined_words.end()) ? execute_block(env, env.defined_words.at(val))
+						: UNDEFINED_WORD;
+
+					if (e != SUCCESS) {
+						std::cout << "Running word " << val << "\n";
+						return e;
+					}
 				}
-
-				e = (builtin_words.find(val) != builtin_words.end()) ? builtin_words.at(val)(s)
-					: (defined_words.find(val) != defined_words.end()) ? execute_block(s, defined_words.at(val))
-					: UNDEFINED_WORD;
-
-				if (e != SUCCESS) return e;
 				break;
 		}
 	}
@@ -227,8 +412,9 @@ static Error (*execute_block)(Stack&, Block const&)  = [] (Stack& s, Block const
 };
 
 Error interpret(std::vector<Object*> const& code) {
-	Stack s;
-	Error e = execute_block(s, code);
+	Stack s; std::unordered_map<std::string, Block> w;
+	Environment env{s, w};
+	Error e = execute_block(env, code);
 	for (Object* o: s)
 		delete o;
 	return e;

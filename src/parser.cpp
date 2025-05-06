@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief Parser implementáció
+ * @todo \c parse() ergonómiáját rendbetenni
+ */
 #include <optional>
 #include <vector>
 #include <iostream>
@@ -5,7 +10,8 @@
 
 #include "parser.h"
 #include "tokenizer.h"
-#include "defines.h"
+
+#define ERROR "[\x1b[91mERROR\x1b[m] "
 
 std::optional<std::vector<Object*>>
 parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterator end, bool block, bool list) {
@@ -34,7 +40,7 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 
 				// we are parsing a block, but we hit an incorrect terminator:
 				else if (block && (**it == TTWord("}"))) {
-					std::cout << ERROR << "Interleaved block and list: found `}`, expected `]`\n";
+					std::cout << ERROR "Interleaved block and list: found `}`, expected `]`\n";
 					return std::nullopt;
 				}
 
@@ -44,7 +50,7 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 				
 				// we are parsing a list and we hit an incorrect terminator:
 				else if (list && (**it == TTWord("]"))) {
-					std::cout << ERROR << "Interleaved list and block: found `]`, expected `}`\n";
+					std::cout << ERROR "Interleaved list and block: found `]`, expected `}`\n";
 					return std::nullopt;
 				}
 				
@@ -71,18 +77,19 @@ parse(std::vector<Token*>::const_iterator& it, std::vector<Token*>::const_iterat
 			} break;
 		}
 	}
+	/// @todo Esetleges szivárgás?
 	if (block) {
-		std::cout << ERROR << "Unterminated block\n";
+		std::cout << ERROR "Unterminated block\n";
 		return std::nullopt;
 	} else if (list) {
-		std::cout << ERROR << "Unterminated list\n";
+		std::cout << ERROR "Unterminated list\n";
 		return std::nullopt;
 	}
 	return std::optional<std::vector<Object*>>(result);
 }
 
+
 std::ostream& operator<<(std::ostream& stream, Object const& o) {
-	
 	switch (o.type()) {
 		case Object::Int:
 			return stream << *(int64_t*)o.get_value();
@@ -95,7 +102,7 @@ std::ostream& operator<<(std::ostream& stream, Object const& o) {
 		case Object::Block: {
 			stream << "Block([";
 			for (const Object* obj: *(std::vector<Object*>*)o.get_value())
-				stream << *obj << ",\n";
+				stream << *obj << ", ";
 			return stream << "])";
 		}
 		case Object::List: {
@@ -104,9 +111,7 @@ std::ostream& operator<<(std::ostream& stream, Object const& o) {
 				stream << *obj << ",\n";
 			return stream << "})";
 		}
- 
 	}
-
 	return stream;
 }
 

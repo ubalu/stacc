@@ -1,11 +1,11 @@
 
 ! BASIC WORKINGS
 "Hello, Seamen\n" .   ! Hello world is sooo boring
-34 35 + dup 351 + . . ! comments are here (yes, `!` is a word)
+34 35 + dup 351 + . cr .  cr ! comments are here (yes, `!` is a word)
 
 
 ! CONTROL FLOW
-	[ dup 2 < [ drop 1 ] [ dup dec 'fac call * ] if ] 'fac ! function definition
+	[ dup 2 < [ drop 1 ] [ dup dec fac * ] if ] 'fac ! function definition
 !	^                			   						^
 !	|                									+-- `'string` defines the word `string` (so `'fac`
 ! 	| 														defines `fac`) and binds it to the block on the
@@ -16,17 +16,18 @@
 ! storing it to the function table
 
 4 fac . ! expecting 24
+cr cr
 ! because the stack-based style works well (in my opinion) with fun
 
 ! LIST OPERATIONS
-	[ iota [ * ] reduce1 ] 'loopfac
+	[ iota [ inc ] map [ * ] reduce1 ] 'loopfac
 !	^   \___________/
 !	|         |
 !	|         +----- this part means multiply everything together (apply *
 !	|                between each item and take the result)
 !	+--- this takes the top integer from the stack, and generates a list
 !		 from 1 up to the given number.
-4 loopfac . ! still expecting 24
+4 loopfac . cr ! still expecting 24
 
 
 

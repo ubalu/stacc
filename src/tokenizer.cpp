@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief Tokenizálás implementáció.
+ * @todo A kiíró függvényeket elhagyni
+ */
 #include <optional>
 #include <vector>
 #include <iostream>
@@ -6,7 +11,8 @@
 #include <cstdint>
 
 #include "tokenizer.h"
-#include "defines.h"
+
+#define ERROR "[\x1b[91mERROR\x1b[m] "
 
 std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 	std::vector<Token*> tokens;
@@ -19,7 +25,7 @@ std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 		if (stream.peek() == EOF) break;
 
 		// handle strings
-		// TODO: handle escape strings
+		/// @todo handle escape strings
 		if (stream.peek() == '"') {
 			
 			// discard introducing `"`
@@ -31,7 +37,7 @@ std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 
 				// this is an error
 				if (stream.peek() == EOF) {
-					std::cout << ERROR << "Unterminated string literal";
+					std::cout << ERROR "Unterminated string literal";
 					return std::nullopt;
 				}
 
@@ -73,6 +79,7 @@ std::optional<std::vector<Token*>> tokenize(std::istream& stream) {
 					else 
 						tokens.push_back(new TTWord(word));
 				// stoll and stod throw if no characters can be parsed -> `word` is a word literal
+				/// @todo Máshogy megoldani? Exception-ök szinte úgy fájnak, mint Trianon
 				} catch(std::invalid_argument const&) {
 					tokens.push_back(new TTWord(word));
 				}
@@ -97,7 +104,7 @@ void put_value(std::ostream& stream, Token const& t) {
 			 stream << *(std::string*)t.get_value();
 			return;
 		default: {
-			std::cout << ERROR << "Unreachable";
+			std::cout << ERROR "Unreachable";
 			return; 
 		}
 	}
@@ -114,7 +121,7 @@ std::ostream& operator<<(std::ostream& stream, Token const& t) {
 		case Token::Word:
 			return stream << "WORD(" << *(std::string*)t.get_value() << ")";
 		default: {
-			std::cout << ERROR << "Unreachable";
+			std::cout << ERROR "Unreachable";
 			return stream;
 		}
 	}

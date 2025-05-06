@@ -1,3 +1,8 @@
+/**
+ * @file 
+ * @brief Osztály- és függvénydeklarációk tokenizáláshoz.
+ */
+
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
@@ -7,29 +12,43 @@
 #include <vector>
 #include <istream>
 
-/// This class represents a token (a group of characters 
-/// with associated meaning).
-///
-/// It is implemented as a kind of glorified tagged union.
+/// Karaktercsoportok extra jelentéssel.
 class Token {
 public:
-	/// types of literals
-	using Type = enum {Int, Float, String, Word}; 
+	/// A várható típusok.
+	enum Type {
+		/// Egész literál.
+		Int,
+		/// Valós literál.
+		Float,
+		/// Szöveg literál.
+		String,
+		/// Más szó.
+		Word
+	}; 
 
-	/// tell the type of the token 
+	/// A token típusának lekérdezése.
+	/// @returns A token típusa.
 	virtual Type type(void) const = 0;
 	
-	/// get the value the token represents
+	/// Token értékének lekérdezése.
+	/// @returns Pointer a token értékére.
 	virtual void* get_value(void) = 0;
+	/// @overload
 	virtual const void* get_value(void) const = 0;
 
-	/// helps with parsing
+	/// Segítő függvény szintaktikai analízishez.
+	/// @param other A token, amihez hasonlítunk.
+	/// @returns Egyenlő-e a két token.
 	virtual bool operator==(Token const& other) const = 0;
 	
-	/// some tokens may need heap memory
 	virtual ~Token() {}
 };
 
+/// Szám literál.
+/**
+ *  Egy <a href="https://en.cppreference.com/w/cpp/string/basic_string/stol">C-stílusú</a> 64-bites, előjeles egész literál. 
+ */
 class TTInt: public Token {
 	int64_t value;
 public:
@@ -40,9 +59,13 @@ public:
 	void* get_value(void) override { return &value; }
 	const void* get_value(void) const override { return &value; }
 
-	bool operator==(Token const& other) const { return other.type() == Token::Int && *(int64_t*)other.get_value() == value; }
+	bool operator==(Token const& other) const override { return other.type() == Token::Int && *(int64_t*)other.get_value() == value; }
 };
 
+/// Valós literál.
+/**
+ * Egy [C-stílusú](https://en.cppreference.com/w/cpp/string/basic_string/stof) dupla pontosságú lebegőpontos szám literál.
+ */
 class TTFloat: public Token {
 	double value;
 public:
@@ -53,9 +76,15 @@ public:
 	void* get_value(void) override { return &value; }
 	const void* get_value(void) const override { return &value; }
 
-	bool operator==(Token const& other) const { return other.type() == Token::Float && *(double*)other.get_value() == value; }
+	bool operator==(Token const& other) const override { return other.type() == Token::Float && *(double*)other.get_value() == value; }
 };
 
+
+/// String literál.
+/**
+ * Egy szöveges literál, \c " -től \c " -ig tart. 
+ * @todo Escape karakterek.
+ */
 class TTString: public Token {
 	std::string* value; 
 public:
@@ -70,10 +99,13 @@ public:
 
 	~TTString(void) { delete value; }
 
-	bool operator==(Token const& other) const { return other.type() == Token::String && *(std::string*)other.get_value() == *value; }
+	bool operator==(Token const& other) const override { return other.type() == Token::String && *(std::string*)other.get_value() == *value; }
 };
 
-
+/// Egyszerű szó
+/**
+ * Más, különleges tokenként nem értelmezett szó.
+ */
 class TTWord: public Token {
 	std::string* value; 
 public:
@@ -87,12 +119,23 @@ public:
 
 	~TTWord(void) { delete value; }
 
-	bool operator==(Token const& other) const { return other.type() == Token::Word && *(std::string*)other.get_value() == *value; }
+	bool operator==(Token const& other) const override { return other.type() == Token::Word && *(std::string*)other.get_value() == *value; }
 };
 
+/// Stream tokenizálasa.
+/**
+ * @param stream A bemeneti stream, ahonnan a forrást olvassuk.
+ * @returns Siker esetén a tokenek listáját. A tárolt tokeneket a hívó birtokolja. 
+ * 			Hiba esetén  \code{.cpp} std::nullopt \endcode.
+ */
 std::optional<std::vector<Token*>> tokenize(std::istream& stream);
 
+/// @deprecated Valószínűleg többet nem fogom használni, a végső beadás előtt
+/// 			valószínűleg kikerül a codebase-ből.
 void put_value(std::ostream& stream, Token const& t);
+/// @deprecated Valószínűleg többet nem fogom használni, a végső beadás előtt
+/// 			valószínűleg kikerül a codebase-ből.
 std::ostream& operator<<(std::ostream& stream, Token const& t);
+
 
 #endif
